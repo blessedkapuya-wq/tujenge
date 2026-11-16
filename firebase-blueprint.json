@@ -1,0 +1,384 @@
+{
+  "entities": {
+    "VicobaGroup": {
+      "title": "VicobaGroup",
+      "description": "Shared Tujenge Hub VICOBA group configuration and aggregate balances in TSH.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "tagline": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "currency": { "type": "string", "enum": ["TSH"] },
+        "sharePriceTsh": { "type": "integer" },
+        "socialFundTsh": { "type": "integer" },
+        "sundayFineTsh": { "type": "integer" },
+        "meetingIntervalMonths": { "type": "integer" },
+        "loanMultiplier": { "type": "integer" },
+        "interestRatePct": { "type": "integer" },
+        "nextMemberSeq": { "type": "integer" },
+        "memberCount": { "type": "integer" },
+        "totalShares": { "type": "integer" },
+        "totalGroupPoolTsh": { "type": "integer" },
+        "totalLoanOutTsh": { "type": "integer" },
+        "totalLoanRepaidTsh": { "type": "integer" },
+        "totalJamiiOutTsh": { "type": "integer" },
+        "inviteCode": { "type": "string", "minLength": 3, "maxLength": 32 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "name",
+        "currency",
+        "sharePriceTsh",
+        "socialFundTsh",
+        "loanMultiplier",
+        "interestRatePct",
+        "nextMemberSeq",
+        "memberCount",
+        "totalShares",
+        "totalGroupPoolTsh",
+        "totalLoanOutTsh",
+        "inviteCode",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MemberLedger": {
+      "title": "MemberLedger",
+      "description": "Public group ledger entry for each VICOBA member (no raw PII).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberNumber": { "type": "string", "pattern": "^TUJ-[0-9]{3,5}$", "maxLength": 16 },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "role": { "type": "string", "enum": ["founder", "member"] },
+        "status": { "type": "string", "enum": ["active", "pending"] },
+        "preferredNetwork": { "type": "string", "enum": ["M-Pesa", "Mixx by Yas", "Airtel Money", "Halopesa"] },
+        "maskedPhone": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "totalShares": { "type": "integer" },
+        "totalSavedTsh": { "type": "integer" },
+        "socialFundTsh": { "type": "integer" },
+        "activeLoanBalanceTsh": { "type": "integer" },
+        "totalLoanRepaidTsh": { "type": "integer" },
+        "totalFinesTsh": { "type": "integer" },
+        "unpaidFineTsh": { "type": "integer" },
+        "activeLoanId": { "type": "string", "maxLength": 128 },
+        "lastPaymentAt": { "type": "string", "format": "date-time" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "memberNumber",
+        "fullName",
+        "role",
+        "status",
+        "preferredNetwork",
+        "maskedPhone",
+        "totalShares",
+        "totalSavedTsh",
+        "socialFundTsh",
+        "activeLoanBalanceTsh",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "MemberPrivatePii": {
+      "title": "MemberPrivatePii",
+      "description": "Isolated PII record for a VICOBA member (owner and admin read only).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "phone": { "type": "string", "minLength": 7, "maxLength": 24 },
+        "email": { "type": "string", "maxLength": 120 },
+        "nextOfKinName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "nextOfKinPhone": { "type": "string", "minLength": 7, "maxLength": 24 },
+        "mtaaHouseNumber": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "nationalId": { "type": "string", "maxLength": 40 },
+        "startingCommitmentShares": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "phone", "nextOfKinName", "nextOfKinPhone", "mtaaHouseNumber", "createdAt"]
+    },
+    "MobilePayment": {
+      "title": "MobilePayment",
+      "description": "Mobile money contribution, fine, or loan repayment transaction in TSH.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberNumber": { "type": "string", "maxLength": 16 },
+        "memberName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "category": { "type": "string", "enum": ["weekly_contribution", "shares", "social_fund", "loan_repayment", "fine"] },
+        "sharesCount": { "type": "integer" },
+        "amountTsh": { "type": "integer" },
+        "hisaTsh": { "type": "integer" },
+        "jamiiTsh": { "type": "integer" },
+        "provider": { "type": "string", "enum": ["M-Pesa", "Mixx by Yas", "Airtel Money", "Halopesa"] },
+        "maskedPhone": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "reference": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "status": { "type": "string", "enum": ["confirmed", "adjusted", "reversed"] },
+        "adjustedFromAmountTsh": { "type": "integer" },
+        "adjustmentReason": { "type": "string", "maxLength": 200 },
+        "adjustedByUid": { "type": "string", "maxLength": 128 },
+        "adjustedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "memberId",
+        "memberNumber",
+        "memberName",
+        "category",
+        "sharesCount",
+        "amountTsh",
+        "provider",
+        "maskedPhone",
+        "reference",
+        "status",
+        "createdAt"
+      ]
+    },
+    "MemberLoan": {
+      "title": "MemberLoan",
+      "description": "VICOBA loan request or active/paid loan issued to a member in TSH.",
+      "type": "object",
+      "properties": {
+        "memberId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberNumber": { "type": "string", "maxLength": 16 },
+        "memberName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "principalTsh": { "type": "integer" },
+        "interestTsh": { "type": "integer" },
+        "totalDueTsh": { "type": "integer" },
+        "repaidTsh": { "type": "integer" },
+        "remainingTsh": { "type": "integer" },
+        "durationMonths": { "type": "integer" },
+        "purpose": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "guarantorName": { "type": "string", "maxLength": 80 },
+        "status": { "type": "string", "enum": ["pending", "active", "paid", "rejected"] },
+        "dueDate": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "memberId",
+        "memberUid",
+        "memberNumber",
+        "memberName",
+        "principalTsh",
+        "interestTsh",
+        "totalDueTsh",
+        "repaidTsh",
+        "remainingTsh",
+        "durationMonths",
+        "purpose",
+        "status",
+        "dueDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GroupNotification": {
+      "title": "GroupNotification",
+      "description": "Automatic group-wide broadcast message sent to every member upon payment, meeting reminders, or loan events.",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "eventType": { "type": "string", "enum": ["payment_received", "member_joined", "loan_issued", "loan_requested", "meeting_reminder", "document_added", "fine_applied", "jamii_payout", "payment_adjusted"] },
+        "title": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "message": { "type": "string", "minLength": 5, "maxLength": 320 },
+        "memberNumber": { "type": "string", "maxLength": 16 },
+        "amountTsh": { "type": "integer" },
+        "provider": { "type": "string", "maxLength": 32 },
+        "recipientCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "senderUid",
+        "eventType",
+        "title",
+        "message",
+        "recipientCount",
+        "createdAt"
+      ]
+    },
+    "GroupDocument": {
+      "title": "GroupDocument",
+      "description": "Official VICOBA policies and documents manually added by Admin on the Resources page.",
+      "type": "object",
+      "properties": {
+        "groupId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "category": { "type": "string", "enum": ["Policy", "Constitution", "Meeting Minutes", "Financial Form", "Notice"] },
+        "content": { "type": "string", "minLength": 5, "maxLength": 4000 },
+        "externalUrl": { "type": "string", "maxLength": 300 },
+        "attachmentName": { "type": "string", "maxLength": 120 },
+        "visibility": { "type": "string", "enum": ["public", "members"] },
+        "addedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "addedByName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "groupId",
+        "title",
+        "category",
+        "content",
+        "visibility",
+        "addedByUid",
+        "addedByName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GroupMeeting": {
+      "title": "GroupMeeting",
+      "description": "Quarterly (3-month) VICOBA meeting schedule entry with agenda and location.",
+      "type": "object",
+      "properties": {
+        "groupId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "quarterLabel": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "meetingDate": { "type": "string", "minLength": 8, "maxLength": 20 },
+        "meetingTime": { "type": "string", "minLength": 2, "maxLength": 20 },
+        "location": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "agenda": { "type": "string", "minLength": 4, "maxLength": 500 },
+        "status": { "type": "string", "enum": ["scheduled", "completed"] },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "groupId",
+        "title",
+        "quarterLabel",
+        "meetingDate",
+        "meetingTime",
+        "location",
+        "agenda",
+        "status",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "JamiiPayout": {
+      "title": "JamiiPayout",
+      "description": "Emergency social fund (Jamii) disbursement record in TSH.",
+      "type": "object",
+      "properties": {
+        "groupId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "memberId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberNumber": { "type": "string", "maxLength": 16 },
+        "memberName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "reason": { "type": "string", "enum": ["Illness", "Bereavement", "Family Emergency", "Maternity", "Other"] },
+        "notes": { "type": "string", "minLength": 2, "maxLength": 240 },
+        "amountTsh": { "type": "integer" },
+        "payoutDate": { "type": "string", "minLength": 8, "maxLength": 20 },
+        "approvedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "groupId",
+        "memberId",
+        "memberNumber",
+        "memberName",
+        "reason",
+        "notes",
+        "amountTsh",
+        "payoutDate",
+        "approvedByUid",
+        "createdAt"
+      ]
+    },
+    "PaymentAdjustment": {
+      "title": "PaymentAdjustment",
+      "description": "Immutable admin audit log for payment amount adjustments and mistake reversals.",
+      "type": "object",
+      "properties": {
+        "groupId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "paymentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "reference": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "memberId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberNumber": { "type": "string", "maxLength": 16 },
+        "memberName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "action": { "type": "string", "enum": ["adjusted", "reversed"] },
+        "previousAmountTsh": { "type": "integer" },
+        "newAmountTsh": { "type": "integer" },
+        "reason": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "adminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "groupId",
+        "paymentId",
+        "reference",
+        "memberId",
+        "memberNumber",
+        "memberName",
+        "action",
+        "previousAmountTsh",
+        "newAmountTsh",
+        "reason",
+        "adminUid",
+        "createdAt"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted admin role assignment.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdAt"]
+    }
+  },
+  "firestore": {
+    "/groups/{groupId}": {
+      "schema": { "$ref": "#/entities/VicobaGroup" },
+      "description": "Group rules, share price, member counter, and aggregate pool balances."
+    },
+    "/members/{memberId}": {
+      "schema": { "$ref": "#/entities/MemberLedger" },
+      "description": "Member numbers, share totals, and active loan summary."
+    },
+    "/members/{memberId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/MemberPrivatePii" },
+      "description": "Protected member phone, mtaa/house number, optional ID, and next-of-kin contact details."
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/MobilePayment" },
+      "description": "Confirmed, adjusted, or reversed mobile money contributions, fines, and loan repayments."
+    },
+    "/loans/{loanId}": {
+      "schema": { "$ref": "#/entities/MemberLoan" },
+      "description": "Loan applications and active/paid member loans."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/GroupNotification" },
+      "description": "Automatic group-wide payment, meeting reminder, and membership messages."
+    },
+    "/documents/{docId}": {
+      "schema": { "$ref": "#/entities/GroupDocument" },
+      "description": "Official VICOBA policies and documents manually added by Admin."
+    },
+    "/meetings/{meetingId}": {
+      "schema": { "$ref": "#/entities/GroupMeeting" },
+      "description": "Quarterly (3-month) group meetings calendar and agendas."
+    },
+    "/jamii_payouts/{payoutId}": {
+      "schema": { "$ref": "#/entities/JamiiPayout" },
+      "description": "Emergency social fund (Jamii) disbursements approved by Admin."
+    },
+    "/payment_adjustments/{adjustmentId}": {
+      "schema": { "$ref": "#/entities/PaymentAdjustment" },
+      "description": "Immutable audit log of Admin payment adjustments and mistake reversals."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Admin role documents."
+    }
+  }
+}

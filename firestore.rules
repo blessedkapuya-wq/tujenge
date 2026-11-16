@@ -1,0 +1,501 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        ('phone_number' in request.auth.token && request.auth.token.phone_number != null)
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email_verified == true && request.auth.token.email == 'blessedkapuya@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidGroup(data) {
+      return data.keys().hasAll([
+        'name', 'currency', 'sharePriceTsh', 'socialFundTsh', 'loanMultiplier',
+        'interestRatePct', 'nextMemberSeq', 'memberCount', 'totalShares',
+        'totalGroupPoolTsh', 'totalLoanOutTsh', 'inviteCode', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'name', 'tagline', 'currency', 'sharePriceTsh', 'socialFundTsh',
+        'sundayFineTsh', 'meetingIntervalMonths', 'loanMultiplier',
+        'interestRatePct', 'nextMemberSeq', 'memberCount', 'totalShares',
+        'totalGroupPoolTsh', 'totalLoanOutTsh', 'totalLoanRepaidTsh',
+        'totalJamiiOutTsh', 'inviteCode', 'createdAt', 'updatedAt'
+      ])
+      && data.name is string && data.name.size() >= 2 && data.name.size() <= 80
+      && (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 140))
+      && data.currency == 'TSH'
+      && data.sharePriceTsh is int && data.sharePriceTsh >= 1000 && data.sharePriceTsh <= 10000000
+      && data.socialFundTsh is int && data.socialFundTsh >= 0 && data.socialFundTsh <= 10000000
+      && (!('sundayFineTsh' in data) || (data.sundayFineTsh is int && data.sundayFineTsh >= 0 && data.sundayFineTsh <= 1000000))
+      && (!('meetingIntervalMonths' in data) || (data.meetingIntervalMonths is int && data.meetingIntervalMonths >= 1 && data.meetingIntervalMonths <= 12))
+      && data.loanMultiplier is int && data.loanMultiplier >= 1 && data.loanMultiplier <= 10
+      && data.interestRatePct is int && data.interestRatePct >= 0 && data.interestRatePct <= 50
+      && data.nextMemberSeq is int && data.nextMemberSeq >= 1 && data.nextMemberSeq <= 100000
+      && data.memberCount is int && data.memberCount >= 0 && data.memberCount <= 100000
+      && data.totalShares is int && data.totalShares >= 0
+      && data.totalGroupPoolTsh is int && data.totalGroupPoolTsh >= 0
+      && data.totalLoanOutTsh is int && data.totalLoanOutTsh >= 0
+      && (!('totalLoanRepaidTsh' in data) || (data.totalLoanRepaidTsh is int && data.totalLoanRepaidTsh >= 0))
+      && (!('totalJamiiOutTsh' in data) || (data.totalJamiiOutTsh is int && data.totalJamiiOutTsh >= 0))
+      && data.inviteCode is string && data.inviteCode.size() >= 3 && data.inviteCode.size() <= 32
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidMember(data) {
+      return data.keys().hasAll([
+        'uid', 'memberNumber', 'fullName', 'role', 'status', 'preferredNetwork',
+        'maskedPhone', 'totalShares', 'totalSavedTsh', 'socialFundTsh',
+        'activeLoanBalanceTsh', 'joinedAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'uid', 'memberNumber', 'fullName', 'role', 'status', 'preferredNetwork',
+        'maskedPhone', 'totalShares', 'totalSavedTsh', 'socialFundTsh',
+        'activeLoanBalanceTsh', 'totalLoanRepaidTsh', 'totalFinesTsh',
+        'unpaidFineTsh', 'activeLoanId', 'lastPaymentAt', 'joinedAt', 'updatedAt'
+      ])
+      && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+      && data.memberNumber is string && data.memberNumber.size() >= 5 && data.memberNumber.size() <= 16
+      && data.memberNumber.matches('^TUJ-[0-9]{3,5}$')
+      && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 80
+      && data.role in ['founder', 'member']
+      && data.status in ['active', 'pending']
+      && data.preferredNetwork in ['M-Pesa', 'Mixx by Yas', 'Airtel Money', 'Halopesa']
+      && data.maskedPhone is string && data.maskedPhone.size() >= 4 && data.maskedPhone.size() <= 24
+      && data.totalShares is int && data.totalShares >= 0 && data.totalShares <= 1000000
+      && data.totalSavedTsh is int && data.totalSavedTsh >= 0
+      && data.socialFundTsh is int && data.socialFundTsh >= 0
+      && data.activeLoanBalanceTsh is int && data.activeLoanBalanceTsh >= 0
+      && (!('totalLoanRepaidTsh' in data) || (data.totalLoanRepaidTsh is int && data.totalLoanRepaidTsh >= 0))
+      && (!('totalFinesTsh' in data) || (data.totalFinesTsh is int && data.totalFinesTsh >= 0))
+      && (!('unpaidFineTsh' in data) || (data.unpaidFineTsh is int && data.unpaidFineTsh >= 0))
+      && (!('activeLoanId' in data) || (data.activeLoanId is string && data.activeLoanId.size() <= 128))
+      && (!('lastPaymentAt' in data) || data.lastPaymentAt is timestamp)
+      && data.joinedAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidMemberPii(data) {
+      return data.keys().hasAll(['uid', 'phone', 'nextOfKinName', 'nextOfKinPhone', 'mtaaHouseNumber', 'createdAt'])
+      && data.keys().hasOnly([
+        'uid', 'phone', 'email', 'nextOfKinName', 'nextOfKinPhone',
+        'mtaaHouseNumber', 'nationalId', 'startingCommitmentShares', 'createdAt'
+      ])
+      && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+      && data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 24
+      && (!('email' in data) || (data.email is string && data.email.size() <= 120))
+      && data.nextOfKinName is string && data.nextOfKinName.size() >= 2 && data.nextOfKinName.size() <= 80
+      && data.nextOfKinPhone is string && data.nextOfKinPhone.size() >= 7 && data.nextOfKinPhone.size() <= 24
+      && data.mtaaHouseNumber is string && data.mtaaHouseNumber.size() >= 2 && data.mtaaHouseNumber.size() <= 140
+      && (!('nationalId' in data) || (data.nationalId is string && data.nationalId.size() <= 40))
+      && (!('startingCommitmentShares' in data) || (data.startingCommitmentShares is int && data.startingCommitmentShares >= 0 && data.startingCommitmentShares <= 10000))
+      && data.createdAt is timestamp;
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll([
+        'uid', 'memberId', 'memberNumber', 'memberName', 'category',
+        'sharesCount', 'amountTsh', 'provider', 'maskedPhone', 'reference',
+        'status', 'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'uid', 'memberId', 'memberNumber', 'memberName', 'category',
+        'sharesCount', 'amountTsh', 'hisaTsh', 'jamiiTsh', 'provider', 'maskedPhone', 'reference',
+        'status', 'adjustedFromAmountTsh', 'adjustmentReason', 'adjustedByUid', 'adjustedAt',
+        'createdAt'
+      ])
+      && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+      && data.memberId is string && data.memberId.size() >= 1 && data.memberId.size() <= 128
+      && data.memberNumber is string && data.memberNumber.size() >= 5 && data.memberNumber.size() <= 16
+      && data.memberName is string && data.memberName.size() >= 2 && data.memberName.size() <= 80
+      && data.category in ['weekly_contribution', 'shares', 'social_fund', 'loan_repayment', 'fine']
+      && data.sharesCount is int && data.sharesCount >= 0 && data.sharesCount <= 10000
+      && data.amountTsh is int && data.amountTsh >= 0 && data.amountTsh <= 100000000
+      && (!('hisaTsh' in data) || (data.hisaTsh is int && data.hisaTsh >= 0 && data.hisaTsh <= 100000000))
+      && (!('jamiiTsh' in data) || (data.jamiiTsh is int && data.jamiiTsh >= 0 && data.jamiiTsh <= 100000000))
+      && data.provider in ['M-Pesa', 'Mixx by Yas', 'Airtel Money', 'Halopesa']
+      && data.maskedPhone is string && data.maskedPhone.size() >= 4 && data.maskedPhone.size() <= 24
+      && data.reference is string && data.reference.size() >= 4 && data.reference.size() <= 40
+      && data.status in ['confirmed', 'adjusted', 'reversed']
+      && (!('adjustedFromAmountTsh' in data) || (data.adjustedFromAmountTsh is int && data.adjustedFromAmountTsh >= 0))
+      && (!('adjustmentReason' in data) || (data.adjustmentReason is string && data.adjustmentReason.size() <= 200))
+      && (!('adjustedByUid' in data) || (data.adjustedByUid is string && data.adjustedByUid.size() <= 128))
+      && (!('adjustedAt' in data) || data.adjustedAt is timestamp)
+      && data.createdAt is timestamp;
+    }
+
+    function isValidLoan(data) {
+      return data.keys().hasAll([
+        'memberId', 'memberUid', 'memberNumber', 'memberName', 'principalTsh',
+        'interestTsh', 'totalDueTsh', 'repaidTsh', 'remainingTsh',
+        'durationMonths', 'purpose', 'status', 'dueDate', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'memberId', 'memberUid', 'memberNumber', 'memberName', 'principalTsh',
+        'interestTsh', 'totalDueTsh', 'repaidTsh', 'remainingTsh',
+        'durationMonths', 'purpose', 'guarantorName', 'status', 'dueDate', 'createdAt', 'updatedAt'
+      ])
+      && data.memberId is string && data.memberId.size() >= 1 && data.memberId.size() <= 128
+      && data.memberUid is string && data.memberUid.size() >= 1 && data.memberUid.size() <= 128
+      && data.memberNumber is string && data.memberNumber.size() >= 5 && data.memberNumber.size() <= 16
+      && data.memberName is string && data.memberName.size() >= 2 && data.memberName.size() <= 80
+      && data.principalTsh is int && data.principalTsh >= 1000 && data.principalTsh <= 100000000
+      && data.interestTsh is int && data.interestTsh >= 0 && data.interestTsh <= 50000000
+      && data.totalDueTsh is int && data.totalDueTsh >= 1000
+      && data.repaidTsh is int && data.repaidTsh >= 0
+      && data.remainingTsh is int && data.remainingTsh >= 0
+      && data.durationMonths is int && data.durationMonths >= 1 && data.durationMonths <= 24
+      && data.purpose is string && data.purpose.size() >= 2 && data.purpose.size() <= 120
+      && (!('guarantorName' in data) || (data.guarantorName is string && data.guarantorName.size() <= 80))
+      && data.status in ['pending', 'active', 'paid', 'rejected']
+      && data.dueDate is string && data.dueDate.size() >= 4 && data.dueDate.size() <= 32
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['senderUid', 'eventType', 'title', 'message', 'recipientCount', 'createdAt'])
+      && data.keys().hasOnly([
+        'senderUid', 'eventType', 'title', 'message', 'memberNumber',
+        'amountTsh', 'provider', 'recipientCount', 'createdAt'
+      ])
+      && data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128
+      && data.eventType in ['payment_received', 'member_joined', 'loan_issued', 'loan_requested', 'meeting_reminder', 'document_added', 'fine_applied', 'jamii_payout', 'payment_adjusted']
+      && data.title is string && data.title.size() >= 2 && data.title.size() <= 100
+      && data.message is string && data.message.size() >= 5 && data.message.size() <= 320
+      && (!('memberNumber' in data) || (data.memberNumber is string && data.memberNumber.size() <= 16))
+      && (!('amountTsh' in data) || (data.amountTsh is int && data.amountTsh >= 0))
+      && (!('provider' in data) || (data.provider is string && data.provider.size() <= 32))
+      && data.recipientCount is int && data.recipientCount >= 0 && data.recipientCount <= 100000
+      && data.createdAt is timestamp;
+    }
+
+    function isValidDocument(data) {
+      return data.keys().hasAll([
+        'groupId', 'title', 'category', 'content', 'visibility',
+        'addedByUid', 'addedByName', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'groupId', 'title', 'category', 'content', 'externalUrl',
+        'attachmentName', 'visibility', 'addedByUid', 'addedByName', 'createdAt', 'updatedAt'
+      ])
+      && data.groupId == 'tujenge-main'
+      && data.title is string && data.title.size() >= 2 && data.title.size() <= 120
+      && data.category in ['Policy', 'Constitution', 'Meeting Minutes', 'Financial Form', 'Notice']
+      && data.content is string && data.content.size() >= 5 && data.content.size() <= 4000
+      && (!('externalUrl' in data) || (data.externalUrl is string && data.externalUrl.size() <= 300))
+      && (!('attachmentName' in data) || (data.attachmentName is string && data.attachmentName.size() <= 120))
+      && data.visibility in ['public', 'members']
+      && data.addedByUid is string && data.addedByUid.size() >= 1 && data.addedByUid.size() <= 128
+      && data.addedByName is string && data.addedByName.size() >= 2 && data.addedByName.size() <= 80
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidMeeting(data) {
+      return data.keys().hasAll([
+        'groupId', 'title', 'quarterLabel', 'meetingDate', 'meetingTime',
+        'location', 'agenda', 'status', 'createdByUid', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'groupId', 'title', 'quarterLabel', 'meetingDate', 'meetingTime',
+        'location', 'agenda', 'status', 'createdByUid', 'createdAt', 'updatedAt'
+      ])
+      && data.groupId == 'tujenge-main'
+      && data.title is string && data.title.size() >= 2 && data.title.size() <= 100
+      && data.quarterLabel is string && data.quarterLabel.size() >= 2 && data.quarterLabel.size() <= 32
+      && data.meetingDate is string && data.meetingDate.size() >= 8 && data.meetingDate.size() <= 20
+      && data.meetingTime is string && data.meetingTime.size() >= 2 && data.meetingTime.size() <= 20
+      && data.location is string && data.location.size() >= 2 && data.location.size() <= 120
+      && data.agenda is string && data.agenda.size() >= 4 && data.agenda.size() <= 500
+      && data.status in ['scheduled', 'completed']
+      && data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidJamiiPayout(data) {
+      return data.keys().hasAll([
+        'groupId', 'memberId', 'memberNumber', 'memberName',
+        'reason', 'notes', 'amountTsh', 'payoutDate', 'approvedByUid', 'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'groupId', 'memberId', 'memberNumber', 'memberName',
+        'reason', 'notes', 'amountTsh', 'payoutDate', 'approvedByUid', 'createdAt'
+      ])
+      && data.groupId == 'tujenge-main'
+      && data.memberId is string && data.memberId.size() >= 1 && data.memberId.size() <= 128
+      && data.memberNumber is string && data.memberNumber.size() >= 5 && data.memberNumber.size() <= 16
+      && data.memberName is string && data.memberName.size() >= 2 && data.memberName.size() <= 80
+      && data.reason in ['Illness', 'Bereavement', 'Family Emergency', 'Maternity', 'Other']
+      && data.notes is string && data.notes.size() >= 2 && data.notes.size() <= 240
+      && data.amountTsh is int && data.amountTsh >= 1000 && data.amountTsh <= 100000000
+      && data.payoutDate is string && data.payoutDate.size() >= 8 && data.payoutDate.size() <= 20
+      && data.approvedByUid is string && data.approvedByUid.size() >= 1 && data.approvedByUid.size() <= 128
+      && data.createdAt is timestamp;
+    }
+
+    function isValidPaymentAdjustment(data) {
+      return data.keys().hasAll([
+        'groupId', 'paymentId', 'reference', 'memberId', 'memberNumber',
+        'memberName', 'action', 'previousAmountTsh', 'newAmountTsh',
+        'reason', 'adminUid', 'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'groupId', 'paymentId', 'reference', 'memberId', 'memberNumber',
+        'memberName', 'action', 'previousAmountTsh', 'newAmountTsh',
+        'reason', 'adminUid', 'createdAt'
+      ])
+      && data.groupId == 'tujenge-main'
+      && data.paymentId is string && data.paymentId.size() >= 1 && data.paymentId.size() <= 128
+      && data.reference is string && data.reference.size() >= 2 && data.reference.size() <= 40
+      && data.memberId is string && data.memberId.size() >= 1 && data.memberId.size() <= 128
+      && data.memberNumber is string && data.memberNumber.size() >= 5 && data.memberNumber.size() <= 16
+      && data.memberName is string && data.memberName.size() >= 2 && data.memberName.size() <= 80
+      && data.action in ['adjusted', 'reversed']
+      && data.previousAmountTsh is int && data.previousAmountTsh >= 0 && data.previousAmountTsh <= 100000000
+      && data.newAmountTsh is int && data.newAmountTsh >= 0 && data.newAmountTsh <= 100000000
+      && data.reason is string && data.reason.size() >= 3 && data.reason.size() <= 200
+      && data.adminUid is string && data.adminUid.size() >= 1 && data.adminUid.size() <= 128
+      && data.createdAt is timestamp;
+    }
+
+    match /groups/{groupId} {
+      // Public overview summary is readable so invited visitors on the share link can inspect group rules
+      allow get: if isValidId(groupId);
+      allow list: if isVerified() && resource.data.currency == 'TSH';
+      allow create: if isAdmin() && isValidId(groupId) && isValidGroup(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(groupId) && isValidGroup(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isVerified() && (
+              // Member joining increments sequence and count by 1
+              (incoming().diff(existing()).affectedKeys().hasOnly(['nextMemberSeq', 'memberCount', 'updatedAt'])
+                && incoming().nextMemberSeq == existing().nextMemberSeq + 1
+                && incoming().memberCount == existing().memberCount + 1)
+              ||
+              // Member payment updates aggregate pool counters upward or loan balance downward
+              (incoming().diff(existing()).affectedKeys().hasOnly(['totalShares', 'totalGroupPoolTsh', 'totalLoanOutTsh', 'totalLoanRepaidTsh', 'updatedAt'])
+                && incoming().totalShares >= existing().totalShares
+                && incoming().totalGroupPoolTsh >= existing().totalGroupPoolTsh)
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /members/{memberId} {
+      // Public member directory (memberNumber, fullName, shares) contains no raw PII; raw PII is isolated in /private/pii
+      allow get: if isValidId(memberId);
+      allow list: if resource.data.status in ['active', 'pending'];
+      allow create: if isValidId(memberId) && isValidMember(incoming())
+        && incoming().joinedAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isVerified()
+            && incoming().uid == request.auth.uid
+            && incoming().role == 'member'
+            && incoming().status == 'active'
+            && incoming().totalShares == 0
+            && incoming().totalSavedTsh == 0
+            && incoming().socialFundTsh == 0
+            && incoming().activeLoanBalanceTsh == 0
+          )
+        );
+      allow update: if isValidId(memberId) && isValidMember(incoming())
+        && incoming().joinedAt == existing().joinedAt
+        && incoming().updatedAt == request.time
+        && incoming().memberNumber == existing().memberNumber
+        && (
+          isAdmin() ||
+          (
+            isVerified()
+            && incoming().uid == existing().uid
+            && existing().uid == request.auth.uid
+            && incoming().role == existing().role
+            && incoming().status == existing().status
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'totalShares', 'totalSavedTsh', 'socialFundTsh',
+              'activeLoanBalanceTsh', 'totalLoanRepaidTsh', 'totalFinesTsh',
+              'unpaidFineTsh', 'lastPaymentAt', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(memberId);
+
+      match /private/{docId} {
+        allow get: if isValidId(memberId) && isValidId(docId) && isVerified()
+          && (isAdmin() || get(/databases/$(database)/documents/members/$(memberId)).data.uid == request.auth.uid);
+        allow list: if false;
+        allow create: if isValidId(memberId) && isValidId(docId) && isVerified()
+          && isValidMemberPii(incoming())
+          && incoming().createdAt == request.time
+          && (isAdmin() || incoming().uid == request.auth.uid);
+        allow update: if isValidId(memberId) && isValidId(docId) && isVerified()
+          && isValidMemberPii(incoming())
+          && incoming().createdAt == existing().createdAt
+          && (isAdmin() || (incoming().uid == existing().uid && existing().uid == request.auth.uid));
+        allow delete: if isAdmin() && isValidId(memberId) && isValidId(docId);
+      }
+    }
+
+    match /payments/{paymentId} {
+      allow get: if isValidId(paymentId) && isVerified();
+      allow list: if isVerified() && resource.data.status in ['confirmed', 'adjusted', 'reversed'];
+      allow create: if isValidId(paymentId) && isVerified() && isValidPayment(incoming())
+        && incoming().createdAt == request.time
+        && incoming().status == 'confirmed'
+        && incoming().amountTsh >= 1000
+        && !('adjustedFromAmountTsh' in incoming())
+        && !('adjustedByUid' in incoming())
+        && (isAdmin() || incoming().uid == request.auth.uid);
+      allow update: if isAdmin() && isValidId(paymentId) && isValidPayment(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().uid == existing().uid
+        && incoming().memberId == existing().memberId
+        && incoming().reference == existing().reference
+        && incoming().adjustedAt == request.time
+        && incoming().adjustedByUid == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'amountTsh', 'hisaTsh', 'jamiiTsh', 'sharesCount', 'status',
+          'adjustedFromAmountTsh', 'adjustmentReason', 'adjustedByUid', 'adjustedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /loans/{loanId} {
+      allow get: if isValidId(loanId) && isVerified();
+      allow list: if isVerified() && resource.data.status in ['pending', 'active', 'paid', 'rejected'];
+      allow create: if isValidId(loanId) && isValidLoan(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isVerified()
+            && incoming().memberUid == request.auth.uid
+            && incoming().status == 'pending'
+            && incoming().repaidTsh == 0
+            && incoming().remainingTsh == incoming().totalDueTsh
+            && exists(/databases/$(database)/documents/members/$(incoming().memberId))
+            && get(/databases/$(database)/documents/members/$(incoming().memberId)).data.uid == request.auth.uid
+          )
+        );
+      allow update: if isValidId(loanId) && isValidLoan(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().memberId == existing().memberId
+        && (isAdmin() || incoming().memberUid == existing().memberUid)
+        && (
+          isAdmin() ||
+          (
+            isVerified()
+            && existing().status == 'active'
+            && existing().memberUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['repaidTsh', 'remainingTsh', 'status', 'updatedAt'])
+            && incoming().repaidTsh >= existing().repaidTsh
+            && incoming().remainingTsh <= existing().remainingTsh
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId) && isVerified();
+      allow list: if isVerified() && resource.data.recipientCount >= 0;
+      allow create: if isValidId(notificationId) && isVerified() && isValidNotification(incoming())
+        && incoming().createdAt == request.time
+        && incoming().senderUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /documents/{docId} {
+      allow get: if isValidId(docId) && (existing().visibility == 'public' || isVerified());
+      allow list: if resource.data.visibility == 'public' || (isVerified() && resource.data.groupId == 'tujenge-main');
+      allow create: if isAdmin() && isValidId(docId) && isValidDocument(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(docId) && isValidDocument(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(docId);
+    }
+
+    match /meetings/{meetingId} {
+      allow get: if isValidId(meetingId) && isVerified();
+      allow list: if isVerified() && resource.data.groupId == 'tujenge-main';
+      allow create: if isAdmin() && isValidId(meetingId) && isValidMeeting(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(meetingId) && isValidMeeting(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(meetingId);
+    }
+
+    match /jamii_payouts/{payoutId} {
+      allow get: if isValidId(payoutId) && isVerified();
+      allow list: if isVerified() && resource.data.groupId == 'tujenge-main';
+      allow create: if isAdmin() && isValidId(payoutId) && isValidJamiiPayout(incoming())
+        && incoming().createdAt == request.time
+        && incoming().approvedByUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /payment_adjustments/{adjustmentId} {
+      allow get: if isValidId(adjustmentId) && isAdmin();
+      allow list: if isAdmin() && resource.data.groupId == 'tujenge-main';
+      allow create: if isAdmin() && isValidId(adjustmentId) && isValidPaymentAdjustment(incoming())
+        && incoming().createdAt == request.time
+        && incoming().adminUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && isVerified() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin() && resource.data.createdAt is timestamp;
+      allow create, update, delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Connection check doc
+    match /test/{docId} {
+      allow get: if isValidId(docId);
+    }
+  }
+}
