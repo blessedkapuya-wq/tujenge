@@ -1,12 +1,13 @@
+import AccountSecurity from './components/AccountSecurity';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
+import { User, onAuthStateChanged } from './lib/session';
 import {
   collection,
   doc,
   onSnapshot,
   query,
   where,
-} from 'firebase/firestore';
+} from './lib/records';
 import {
   BookOpen,
   Calendar,
@@ -775,7 +776,8 @@ export default function App() {
             }}
           />
         )}
-      </main>
+      {user && <AccountSecurity user={user}/>}
+</main>
 
       <footer className="hidden md:block border-t border-[#E5DEC9] bg-[#FAF7F0] py-6">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#55635A]">

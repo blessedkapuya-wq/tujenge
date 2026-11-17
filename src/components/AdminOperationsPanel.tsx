@@ -13,8 +13,8 @@ import {
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
-import firebaseConfig from '../../firebase-applet-config.json';
-import { sendPhoneOtp } from '../lib/firebase';
+
+
 import { useLang } from '../lib/i18n';
 import { SAMPLE_PAYMENT_SMS, parseMobileMoneySms } from '../lib/smsParser';
 import { buildWhatsAppUrl, formatTsh, normalizeTzPhone } from '../types/vicoba';
@@ -148,57 +148,6 @@ export default function AdminOperationsPanel({
     }
   };
 
-  const handleTestPhoneOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOtpResult(null);
-    const normalized = normalizeTzPhone(testPhone);
-    if (!/^\+[1-9][0-9]{8,14}$/.test(normalized)) {
-      setOtpResult({
-        ok: false,
-        message: t(
-          'Enter a valid +255 mobile number (e.g. +255 754 123 456).',
-          'Weka namba sahihi ya simu (+255 754 123 456).'
-        ),
-      });
-      return;
-    }
-
-    setOtpTesting(true);
-    try {
-      await sendPhoneOtp(normalized, 'admin-recaptcha-container');
-      setOtpResult({
-        ok: true,
-        message: t(
-          `SMS verification code sent to ${normalized}! Phone Auth & domain whitelisting are active. (Your Sarah Kapuya Admin session stays signed in—enter the OTP in an incognito window or after signing out to test full login.)`,
-          `Msimbo wa SMS umetumwa kwa ${normalized}! Usajili wa simu na kikoa vimekubaliwa.`
-        ),
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('unauthorized-domain')) {
-        setOtpResult({
-          ok: false,
-          message: t(
-            `Domain "${currentHost}" is not yet in Firebase Console → Authentication → Settings → Authorized domains. Copy the domain above and add it in Firebase Console.`,
-            `Kikoa "${currentHost}" hakijaongezwa bado kwenye Firebase Console → Authentication → Settings → Authorized domains.`
-          ),
-        });
-      } else if (msg.includes('operation-not-allowed')) {
-        setOtpResult({
-          ok: false,
-          message: t(
-            'Phone sign-in provider is currently disabled in Firebase Console → Authentication → Sign-in method → Phone.',
-            'Huduma ya kuingia kwa simu bado haijawashwa kwenye Firebase Console → Authentication → Sign-in method → Phone.'
-          ),
-        });
-      } else {
-        setOtpResult({ ok: false, message: msg });
-      }
-    } finally {
-      setOtpTesting(false);
-    }
-  };
-
   const handleToggleCron = async () => {
     if (!scheduler) return;
     setCronBusy(true);
@@ -278,145 +227,10 @@ export default function AdminOperationsPanel({
     }
   };
 
-  const firebaseProvidersUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`;
-  const firebaseSettingsUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`;
 
   return (
     <div className="space-y-6">
-      {/* 1. Phone OTP Domain Whitelist & Live +255 Test */}
-      <section className="rounded-2xl border border-[#E5DEC9] bg-white overflow-hidden shadow-xs">
-        <div className="px-5 py-4 border-b border-[#EFEAE0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-2.5">
-            <ShieldCheck className="h-5 w-5 text-[#165432] shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <h2 className="font-display text-base font-bold text-[#17231C]">
-                {t(
-                  'Phone OTP Setup & +255 Live Verification Test',
-                  'Mipangilio ya OTP ya Simu & Jaribio la +255'
-                )}
-              </h2>
-              <p className="text-xs text-[#55635A]">
-                {t(
-                  'Ensure both preview & shared domains are whitelisted in Firebase Console so members can sign in via +255 SMS OTP.',
-                  'Hakikisha vikoa vyote viwili vimeidhinishwa katika Firebase Console ili wanachama waingie kwa SMS OTP.'
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={firebaseProvidersUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-[38px] inline-flex items-center gap-1.5 rounded-xl border border-[#DDD4BE] bg-[#FAF7F0] px-3 py-1.5 text-xs font-semibold text-[#17231C] hover:bg-[#EFEAE0] whitespace-nowrap"
-            >
-              {t('Sign-in Providers', 'Washia Phone Auth')}
-              <ExternalLink className="h-3.5 w-3.5 text-[#165432]" aria-hidden="true" />
-            </a>
-            <a
-              href={firebaseSettingsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="min-h-[38px] inline-flex items-center gap-1.5 rounded-xl bg-[#165432] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#114226] whitespace-nowrap"
-            >
-              {t('Authorized Domains', 'Vikoa Vilivyoidhinishwa')}
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-            </a>
-          </div>
-        </div>
-
-        <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-7 space-y-2.5">
-            <div className="text-xs font-semibold text-[#37463D]">
-              {t(
-                'Domains to add in Firebase Authentication → Settings → Authorized domains:',
-                'Vikoa vya kuweka kwenye Firebase Authentication → Settings → Authorized domains:'
-              )}
-            </div>
-            <div className="space-y-2">
-              {domainsToWhitelist.map((domain) => (
-                <div
-                  key={domain}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-[#E5DEC9] bg-[#FAF7F0] px-3 py-2 text-xs"
-                >
-                  <div className="min-w-0">
-                    <div className="font-mono text-[#17231C] truncate">{domain}</div>
-                    {domain === currentHost && (
-                      <span className="text-[10px] font-semibold text-[#165432]">
-                        {t('Active current domain', 'Kikoa kinachotumika sasa')}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyDomain(domain)}
-                    className="min-h-[34px] shrink-0 inline-flex items-center gap-1 rounded-lg border border-[#DDD4BE] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#17231C] hover:bg-[#EFEAE0]"
-                  >
-                    {copiedDomain === domain ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-[#165432]" />
-                        {t('Copied', 'Imenakiliwa')}
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        {t('Copy', 'Nakili')}
-                      </>
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <form onSubmit={handleTestPhoneOtp} className="lg:col-span-5 rounded-xl border border-[#E5DEC9] bg-[#FAF7F0] p-4 space-y-3">
-            <div className="text-xs font-semibold text-[#17231C]">
-              {t('Test +255 SMS OTP Delivery', 'Jaribu Kutuma SMS OTP (+255)')}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8A948D]" />
-                <input
-                  type="tel"
-                  value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
-                  placeholder="+255 754 123 456"
-                  aria-label="Test Tanzanian phone number"
-                  className="w-full min-h-[42px] rounded-xl border border-[#DDD4BE] bg-white pl-8 pr-3 py-2 font-mono text-xs text-[#17231C] focus:border-[#165432] focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={otpTesting}
-                className="min-h-[42px] inline-flex items-center gap-1.5 rounded-xl bg-[#165432] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#114226] disabled:opacity-60 whitespace-nowrap"
-              >
-                {otpTesting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t('Send Test OTP', 'Tuma OTP')}
-              </button>
-            </div>
-            <p className="text-[11px] text-[#55635A]">
-              {t(
-                'Sends a real Firebase SMS verification code to check Phone Auth & domain authorization without signing out your Admin account.',
-                'Hutatuma SMS halisi ya uhakiki bila kukutoa kwenye akaunti yako ya Msimamizi.'
-              )}
-            </p>
-            {otpResult && (
-              <div
-                role="status"
-                className={`rounded-xl border p-2.5 text-[11px] ${
-                  otpResult.ok
-                    ? 'border-[#C6DFCF] bg-[#E8F1EB] text-[#114226]'
-                    : 'border-red-200 bg-red-50 text-red-700'
-                }`}
-              >
-                {otpResult.message}
-              </div>
-            )}
-            <div id="admin-recaptcha-container" />
-          </form>
-        </div>
-      </section>
+      <section className="rounded-2xl border border-[#E5DEC9] bg-white p-5"><h2 className="font-display text-base font-bold text-[#17231C]">{t("Member Sign In","Kuingia kwa Wanachama")}</h2><p className="text-sm text-[#55635A] mt-2">{t("Members sign in with their mobile number and private 6-digit PIN. Admin uses a separate email and password.","Wanachama huingia kwa namba ya simu na PIN binafsi ya tarakimu 6. Msimamizi hutumia barua pepe na nenosiri.")}</p></section>
 
       {/* 2. Scheduled Reminder Cron + Push / WhatsApp Blast */}
       <section className="rounded-2xl border border-[#E5DEC9] bg-white overflow-hidden shadow-xs">

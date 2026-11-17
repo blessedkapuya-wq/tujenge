@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User } from 'firebase/auth';
+import { User } from '../lib/session';
 import {
   AlertCircle,
   ArrowRight,
